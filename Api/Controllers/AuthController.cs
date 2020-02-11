@@ -1,5 +1,7 @@
 ﻿using Api.Models;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using System;
 using System.Collections.Generic;
@@ -15,6 +17,12 @@ namespace Api.Controllers
     public class AuthController : ControllerBase
     {
         private static readonly Dictionary<string, string> _userTokens = new Dictionary<string, string> { { "abdul", null } };
+        private readonly JwtBearerOptions jwtOpts;
+
+        public AuthController(IOptionsSnapshot<JwtBearerOptions> jwtOpts)
+        {
+            this.jwtOpts = jwtOpts.Get(JwtBearerDefaults.AuthenticationScheme) ?? throw new Exception("JwtBearerOptions is null!");
+        }
 
         [Route("login")]
         [HttpPost]
@@ -68,15 +76,15 @@ namespace Api.Controllers
 
         private JwtSecurityToken GenerateToken(IEnumerable<Claim> claims)
         {
-            var secretKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes("superSecretKey@345"));
-            var signinCredentials = new SigningCredentials(secretKey, SecurityAlgorithms.HmacSha256);
+            var key = this.jwtOpts.TokenValidationParameters.IssuerSigningKey;
+            var signCredentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
             var tokeOptions = new JwtSecurityToken(
-                issuer: "http://localhost:44348",
-                audience: "http://localhost:44348",
+                issuer: jwtOpts.TokenValidationParameters.ValidIssuer,
+                audience: jwtOpts.TokenValidationParameters.ValidAudience,
                 claims: claims,
                 expires: DateTime.Now.AddMinutes(1),
-                signingCredentials: signinCredentials
+                signingCredentials: signCredentials
             );
             return tokeOptions;
         }
